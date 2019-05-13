@@ -1,0 +1,50 @@
+(in-package #:xcall)
+
+(defun %generate-template-calls (template-name structure)
+  (declare (ignore template-name))
+  (labels ((ignore (branch)
+             (etypecase branch
+               ((eql t)
+                nil)
+               (cons
+                (cons nil (mapcan #'ignore branch)))))
+           (select (branch)
+             (etypecase branch
+               ((eql t)
+                nil)
+               (cons
+                (maplist (let ((index 0))
+                           (lambda (tail)
+                             (prog1 (nconc (mapcan #'ignore (ldiff branch tail))
+                                           (cons index (select (first tail)))
+                                           (mapcan #'ignore (rest tail)))
+                               (incf index))))
+                         branch)))))
+    (select structure)))
+
+(defun %make-circular-dispenser (list)
+  (let ((elements (copy-list list)))
+    (nconc elements elements)
+    (lambda ()
+      (prog1 (car elements)
+        (setf elements (cdr elements))))))
+
+(defun %generate-ejumpcase (template-var alternatives)
+  `(ejumpcase ,template-var
+     ,@alternatives))
+
+(defmacro xcall (alt prologue &body forms &environment env)
+  (let* ((structure (%analyze-xcall-structure alt `(progn ,@forms) env))
+         (template-name (gensym (string '#:template)))
+         (template-vars (map-into (make-list (length structure))
+                                  (lambda ()
+                                    (gensym (string '#:var)))))
+         (template-var-dispenser (gensym (string '#:template-var-dispenser))))
+    (setf (symbol-function template-var-dispenser)
+          (%make-circular-dispenser template-vars))
+    `(flet ((,template-name (,@template-vars)
+              (macrolet ((,alt (&body alternatives)
+                           (%generate-ejumpcase (funcall ',template-var-dispenser)
+                                                alternatives)))
+                ,@forms)))
+       (,@prologue ,@(%generate-template-calls template-name structure)))))
