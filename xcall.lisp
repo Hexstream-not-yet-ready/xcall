@@ -6,7 +6,7 @@
         (aref (print my-array) 3))
 
 (xcall alt (values) (operator (alt arg1 arg1-2) arg2))
-(values (operator arg1 arg2) (operator arg1-2) arg2)
+(values (operator arg1 arg2) (operator arg1-2 arg2))
 
 (xcall alt (values) (operator (alt arg1 arg1-2) (alt arg2 arg2-2)))
 (values (operator arg1 arg2) (operator arg1 arg2-2) (operator arg1-2 arg2) (operator arg1-2 arg2-2))
